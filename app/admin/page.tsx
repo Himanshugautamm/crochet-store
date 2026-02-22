@@ -8,6 +8,7 @@ type Product = {
   price: number
   image: string
   description: string
+  show_on_home: boolean
 }
 
 export default function AdminPage() {
@@ -19,7 +20,8 @@ export default function AdminPage() {
   const [form, setForm] = useState({
     name: "",
     price: "",
-    description: ""
+    description: "",
+    show_on_home: false
   })
 
   useEffect(() => {
@@ -27,7 +29,10 @@ export default function AdminPage() {
   }, [])
 
   async function fetchProducts() {
-    const { data } = await supabase.from("products").select("*").order("id", { ascending: false })
+    const { data } = await supabase
+      .from("products")
+      .select("*")
+      .order("id", { ascending: false })
     if (data) setProducts(data)
   }
 
@@ -64,7 +69,8 @@ export default function AdminPage() {
           name: form.name,
           price: Number(form.price),
           image: imageUrl,
-          description: form.description
+          description: form.description,
+          show_on_home: form.show_on_home
         })
         .eq("id", editingId)
     } else {
@@ -72,7 +78,8 @@ export default function AdminPage() {
         name: form.name,
         price: Number(form.price),
         image: imageUrl,
-        description: form.description
+        description: form.description,
+        show_on_home: form.show_on_home
       })
     }
 
@@ -85,7 +92,8 @@ export default function AdminPage() {
     setForm({
       name: p.name,
       price: String(p.price),
-      description: p.description || ""
+      description: p.description || "",
+      show_on_home: p.show_on_home ?? false
     })
     setPreview(p.image)
   }
@@ -97,14 +105,14 @@ export default function AdminPage() {
   }
 
   function resetForm() {
-    setForm({ name: "", price: "", description: "" })
+    setForm({ name: "", price: "", description: "", show_on_home: false })
     setImageFile(null)
     setPreview(null)
     setEditingId(null)
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-10 text-purple-700">
+    <div className="p-6 max-w-6xl mx-auto space-y-10">
       <h1 className="text-4xl font-bold">Admin Dashboard 🛠️</h1>
 
       {/* Add / Edit Product */}
@@ -130,9 +138,23 @@ export default function AdminPage() {
         <textarea
           placeholder="Description"
           value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
+          onChange={(e) =>
+            setForm({ ...form, description: e.target.value })
+          }
           className="w-full border p-2 rounded"
         />
+
+        {/* Featured Toggle */}
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={form.show_on_home}
+            onChange={(e) =>
+              setForm({ ...form, show_on_home: e.target.checked })
+            }
+          />
+          Show on Homepage Collection
+        </label>
 
         <input
           type="file"
@@ -170,39 +192,75 @@ export default function AdminPage() {
       </div>
 
       {/* Inventory List */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold">Inventory 📦</h2>
+<div className="space-y-4">
+  <h2 className="text-2xl font-semibold">Inventory 📦</h2>
 
-        <div className="grid md:grid-cols-2 gap-4">
-          {products.map((p) => (
-            <div key={p.id} className="border p-4 rounded-xl flex gap-4 items-center bg-white shadow">
-              {p.image && (
-                <img src={p.image} className="w-20 h-20 object-cover rounded" />
-              )}
+  <div className="grid md:grid-cols-2 gap-4">
+    {products.map((p) => (
+      <div
+        key={p.id}
+        className="border p-4 rounded-xl flex gap-4 items-center bg-white shadow"
+      >
+        {p.image && (
+          <img
+            src={p.image}
+            className="w-20 h-20 object-cover rounded"
+          />
+        )}
 
-              <div className="flex-1">
-                <h3 className="font-semibold">{p.name}</h3>
-                <p>₹{p.price}</p>
-              </div>
+        <div className="flex-1">
+          <h3 className="font-semibold">{p.name}</h3>
+          <p className="text-gray-700">₹{p.price}</p>
 
-              <div className="flex gap-2">
-                <button
-                  onClick={() => editProduct(p)}
-                  className="bg-blue-500 text-white px-3 py-1 rounded"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => deleteProduct(p.id)}
-                  className="bg-red-500 text-white px-3 py-1 rounded"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
+          {p.show_on_home ? (
+            <span className="inline-block mt-1 text-xs font-semibold text-white bg-pink-500 px-2 py-1 rounded-full">
+              Featured on Home
+            </span>
+          ) : (
+            <span className="inline-block mt-1 text-xs font-semibold text-gray-600 bg-gray-200 px-2 py-1 rounded-full">
+              Not Featured
+            </span>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          {/* Feature Toggle Button */}
+          <button
+            onClick={async () => {
+              await supabase
+                .from("products")
+                .update({ show_on_home: !p.show_on_home })
+                .eq("id", p.id)
+
+              fetchProducts()
+            }}
+            className={`px-3 py-1 rounded text-white ${
+              p.show_on_home
+                ? "bg-yellow-500 hover:bg-yellow-600"
+                : "bg-green-500 hover:bg-green-600"
+            }`}
+          >
+            {p.show_on_home ? "Unfeature" : "Feature"}
+          </button>
+
+          <button
+            onClick={() => editProduct(p)}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded"
+          >
+            Edit
+          </button>
+
+          <button
+            onClick={() => deleteProduct(p.id)}
+            className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded"
+          >
+            Delete
+          </button>
         </div>
       </div>
+    ))}
+  </div>
+</div>
     </div>
   )
 }
